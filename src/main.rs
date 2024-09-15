@@ -5,5 +5,8 @@ fn main() {
     let mut board = ChessBoard::new();
     board.print_board();
     let moves = board.get_moves();
+    for mo in moves{
+        println!("{}", mo);
+    }
 
 }
