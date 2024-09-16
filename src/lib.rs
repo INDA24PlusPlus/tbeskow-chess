@@ -1,7 +1,13 @@
 pub struct ChessBoard{
-    board: [[char; 8];8],
-    white_move: bool,
     board_size: usize,
+
+    white_move: bool,
+    move_number: usize,
+
+    // make rollbackable if undo
+    board: Vec<[[char; 8];8]>,
+    long_castle: Vec<[bool; 2]>, // black, white
+    short_castle: Vec<[bool; 2]>,
 }
 
 impl ChessBoard{
@@ -20,33 +26,38 @@ impl ChessBoard{
         let initial_board: [[char; 8]; 8] = [
             ['.', '.', '.', '.', '.', '.', '.', '.'],
             ['.', '.', '.', '.', '.', '.', '.', '.'],
-            ['.', '.', '.', '.', '.', '.', '.', '.'],
-            ['.', '.', '.', '.', '.', '.', '.', '.'],
-            ['.', '.', '.', '.', '.', '.', '.', '.'],
-            ['.', '.', '.', 'O', '.', 'o', '.', '.'],
-            ['.', '.', '.', '.', 'P', '.', '.', '.'],
+            ['.', '.', '.', '.', 'Q', '.', '.', '.'],
+            ['.', 'N', '.', '.', '.', '.', '.', '.'],
+            ['O', '.', '.', '.', '.', '.', '.', '.'],
+            ['r', '.', '.', 'K', '.', '.', '.', '.'],
+            ['O', '.', '.', '.', '.', '.', '.', '.'],
             ['.', '.', '.', '.', '.', '.', '.', '.'],
         ];
 
         ChessBoard{
-            board: initial_board,
-            white_move: true,
             board_size: 8, // does not work over 9 (because of move representation)
+
+            white_move: true,
+            move_number: 0,
+
+            board: vec![initial_board],
+            long_castle: vec![[true, true]], // black, white
+            short_castle: vec![[true, true]],
         }
     }
 
 
     pub fn print_board(&self) {
         print!("   ");
-        for col in 0..self.board[0].len(){
+        for col in 0..self.board[self.move_number][0].len(){
             print!("{} ", (col as u8 + b'a') as char);
         }
         println!();
 
-        for row_index in 0..self.board.len(){
+        for row_index in 0..self.board[self.move_number].len(){
             print!("{}  ", 8-row_index);
 
-            for square in self.board[row_index] {
+            for square in self.board[self.move_number][row_index] {
                 print!("{} ", square);
             }
             println!();
@@ -56,17 +67,17 @@ impl ChessBoard{
     
 
     fn my_color(&self, r:usize, c:usize) -> bool{
-        return (self.white_move ^ (self.board[r][c]>='a')) == true;
+        return (self.white_move ^ (self.board[self.move_number][r][c]>='a')) == true;
     }
 
-    pub fn get_moves(&self) ->  Vec<String>{
+    fn get_all_moves(&self) -> Vec<String>{
         let mut moves: Vec<String> = Vec::new();
 
         for r in 0..self.board_size{
             for c in 0..self.board_size{
-                if self.board[r][c] == '.' {continue;}
+                if self.board[self.move_number][r][c] == '.' {continue;}
                 if !self.my_color(r, c) {continue;}
-                let mut piece: char = self.board[r][c];
+                let mut piece: char = self.board[self.move_number][r][c];
                 piece = piece.to_lowercase().next().unwrap_or(piece);
                 // kan göra finare men vem bryr sig
                 if piece == 'q' {moves.extend(self.get_queen_moves(c as i32, r as i32))};
@@ -80,12 +91,70 @@ impl ChessBoard{
         }
 
 
-        return moves
+        return moves;
+    }
+
+    pub fn get_moves(&mut self) ->  Vec<String>{
+        let all_moves: Vec<String> = self.get_all_moves();
+        let mut moves: Vec<String> = Vec::new();
+
+        
+        for played_move in &all_moves{
+            self.make_move(played_move.clone());
+
+            let mut king_x: i32 = 0;
+            let mut king_y: i32 = 0;
+
+            for r in 0..self.board_size{
+                for c in 0..self.board_size{
+                    if self.board[self.move_number][r][c] == '.' {continue;}
+                    if self.my_color(r, c) {continue;}
+                    let mut piece: char = self.board[self.move_number][r][c];
+                    piece = piece.to_lowercase().next().unwrap_or(piece);
+                    
+                    if piece == 'k' {
+                        king_x = c as i32;
+                        king_y = r as i32;   
+                    }
+                }
+            }
+            // println!("{} {}", king_y, king_x);
+
+            let mut is_possible: bool = true;
+            let opp_moves: Vec<String> = self.get_all_moves();
+            for opp_move in opp_moves{
+                let (x, y, new_x, new_y) = self.move_to_coordinate(&opp_move);
+                if new_x == king_x && new_y == king_y{
+                    let mut piece: char = self.board[self.move_number][y as usize][x as usize]; // tror det är detta håll
+                    piece = piece.to_lowercase().next().unwrap_or(piece);
+                    if piece == 'p' && new_x == x {continue;}
+                    is_possible = false;
+                    break;
+                }
+            }
+            if is_possible{moves.push(played_move.clone());}
+
+            self.undo_move();
+        }
+
+        return moves;
     }
 
     fn coordinate_to_move(&self, x: i32, y: i32, new_x: i32, new_y: i32) -> String{
         return format!("{}{}{}{}", ((x as u8)+b'a') as char, 8-y, ((new_x as u8)+b'a') as char, 8-new_y);
     }
+
+    fn move_to_coordinate(&self, move_str: &str) -> (i32, i32, i32, i32) {
+        let chars: Vec<char> = move_str.chars().collect();
+        
+        let x = (chars[0] as u8 - b'a') as i32;
+        let y = 8 - chars[1].to_digit(10).unwrap() as i32;
+        let new_x = (chars[2] as u8 - b'a') as i32;
+        let new_y = 8 - chars[3].to_digit(10).unwrap() as i32;
+    
+        (x, y, new_x, new_y)
+    }
+    
 
     fn get_moves_direction(&self, x: i32, y: i32, dirs: Vec<(i32, i32)>, distance: i32) -> Vec<String> {
         let mut moves: Vec<String> = Vec::new();
@@ -97,7 +166,7 @@ impl ChessBoard{
 
                 if new_x < 0 || new_x >= self.board_size as i32 || new_y < 0 || new_y >= self.board_size as i32 {break;}
                 
-                if self.board[new_y as usize][new_x as usize] != '.' {
+                if self.board[self.move_number][new_y as usize][new_x as usize] != '.' {
                     if !self.my_color( new_y as usize, new_x as usize) {
                         moves.push(self.coordinate_to_move(x, y, new_x, new_y));
                     }
@@ -136,7 +205,16 @@ impl ChessBoard{
         let dirs: Vec<(i32, i32)> = vec![(1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1)];
         let mut moves: Vec<String> = self.get_moves_direction(x, y, dirs, 1);
 
-        // add castle
+        if self.short_castle[self.move_number][self.white_move as usize]{
+            if self.board[self.move_number][y as usize][(x+1) as usize] == '.' && self.board[self.move_number][y as usize][(x+2) as usize] == '.'{
+                moves.push(self.coordinate_to_move(x, y, x+2, y));
+            }
+        }
+        if self.long_castle[self.move_number][self.white_move as usize]{
+            if self.board[self.move_number][y as usize][(x-1) as usize] == '.' && self.board[self.move_number][y as usize][(x-2) as usize] == '.'{
+                moves.push(self.coordinate_to_move(x, y, x-2, y));
+            }
+        }
 
         return moves
     }
@@ -145,7 +223,7 @@ impl ChessBoard{
         let mut moves: Vec<String> = Vec::new();
         let mut forward: i32 = -1;
         if !self.white_move {forward = 1;}
-        if self.board[(y+forward) as usize][x as usize] == '.'{
+        if self.board[self.move_number][(y+forward) as usize][x as usize] == '.'{
             if (self.white_move && y == 1) || (!self.white_move && y == 6){
                 moves.push(format!("{}{}", self.coordinate_to_move(x, y, x, y+forward), "n")); // can make more clean
                 moves.push(format!("{}{}", self.coordinate_to_move(x, y, x, y+forward), "b"));
@@ -154,13 +232,13 @@ impl ChessBoard{
 
             } else{
                 moves.push(self.coordinate_to_move(x, y, x, y+forward));
-                if ((self.white_move && y == 6) || (!self.white_move && y == 1)) && self.board[(y+forward*2) as usize][x as usize] == '.'{
+                if ((self.white_move && y == 6) || (!self.white_move && y == 1)) && self.board[self.move_number][(y+forward*2) as usize][x as usize] == '.'{
                     moves.push(self.coordinate_to_move(x, y, x, y+forward*2));
                 }
             }
         }
         for side_x in [x-1, x+1]{
-            if self.board[(y+forward) as usize][side_x as usize] == '.'{continue;}
+            if self.board[self.move_number][(y+forward) as usize][side_x as usize] == '.'{continue;}
             if self.my_color((y+forward) as usize, side_x as usize) {continue;}
             if (self.white_move && y == 1) || (!self.white_move && y == 6){
                 moves.push(format!("{}{}", self.coordinate_to_move(x, y, side_x, y+forward), "n")); // can make more clean
@@ -176,10 +254,56 @@ impl ChessBoard{
         return moves;
     }
     
+    pub fn undo_move(&mut self){
+        if self.move_number == 0{
+            panic!("Error: Tried to undo move 0");
+        }
+        self.white_move = !self.white_move;
+        self.move_number -= 1;
 
-    pub fn make_move(&self, played_move: String){
-        // remove illegal moves
-        // make move
+        self.board.pop(); // unefficient
+        self.long_castle.pop();
+        self.short_castle.pop();
+    }
+
+    // borde ha en safe och unsafe av dessa
+    pub fn make_move(&mut self, played_move: String){
+
+
+        // make more efficent (cache)
+        // let moves: Vec<String> = self.get_moves();
+        // if !moves.contains(&played_move){
+        //     panic!("Error: Move was not playable");
+        // }
+
+        let (x, y, new_x, new_y) = self.move_to_coordinate(&played_move);
+
+        // unefficient
+        if let Some(last_board) = self.board.last().cloned(){
+            self.board.push(last_board);
+        }
+        if let Some(last_long_castle) = self.long_castle.last().cloned(){
+            self.long_castle.push(last_long_castle);
+        }
+        if let Some(last_short_castle) = self.short_castle.last().cloned(){
+            self.short_castle.push(last_short_castle);
+        }
+        self.move_number += 1;
+
+        self.board[self.move_number][new_y as usize][new_x as usize] = self.board[self.move_number][y as usize][x as usize];  
+        self.board[self.move_number][y as usize][x as usize] = '.' as char;
+
+        if played_move.len() == 5{
+            if let Some(char_at_index) = played_move.chars().nth(4) {
+                self.board[self.move_number][new_y as usize][new_x as usize] = char_at_index;
+            } 
+            if self.white_move{
+                self.board[self.move_number][new_y as usize][new_x as usize] = ((self.board[self.move_number][new_y as usize][new_x as usize] as u8)+32) as char
+            }
+        }
+
+        
+        self.white_move = !self.white_move;
     }
 
 
