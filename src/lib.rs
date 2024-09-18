@@ -8,6 +8,7 @@ pub struct ChessBoard{
     board: Vec<[[char; 8];8]>,
     long_castle: Vec<[bool; 2]>, // black, white
     short_castle: Vec<[bool; 2]>,
+    en_passant: Vec<i32>,
 }
 
 impl ChessBoard{
@@ -25,12 +26,12 @@ impl ChessBoard{
         // ];
         let initial_board: [[char; 8]; 8] = [
             ['.', '.', '.', '.', '.', '.', '.', '.'],
+            ['.', 'p', '.', '.', '.', '.', '.', '.'],
             ['.', '.', '.', '.', '.', '.', '.', '.'],
-            ['.', '.', '.', '.', 'Q', '.', '.', '.'],
-            ['.', 'N', '.', '.', '.', '.', '.', '.'],
-            ['O', '.', '.', '.', '.', '.', '.', '.'],
-            ['r', '.', '.', 'K', '.', '.', '.', '.'],
-            ['O', '.', '.', '.', '.', '.', '.', '.'],
+            ['.', '.', '.', '.', '.', '.', '.', '.'],
+            ['.', '.', 'P', '.', '.', '.', '.', '.'],
+            ['.', '.', '.', '.', '.', '.', '.', '.'],
+            ['.', '.', '.', '.', '.', '.', '.', '.'],
             ['.', '.', '.', '.', '.', '.', '.', '.'],
         ];
 
@@ -43,6 +44,7 @@ impl ChessBoard{
             board: vec![initial_board],
             long_castle: vec![[true, true]], // black, white
             short_castle: vec![[true, true]],
+            en_passant: vec![-2],
         }
     }
 
@@ -132,6 +134,7 @@ impl ChessBoard{
                     break;
                 }
             }
+
             if is_possible{moves.push(played_move.clone());}
 
             self.undo_move();
@@ -238,6 +241,11 @@ impl ChessBoard{
             }
         }
         for side_x in [x-1, x+1]{
+            // println!("{} {} {}, {} {}", side_x,  self.en_passant[self.move_number], self.move_number, y, self.white_move);
+            if side_x == self.en_passant[self.move_number] && ((self.white_move && y == 3) || (!self.white_move && y == 4)){
+                println!("{} {} {}", side_x,  self.en_passant[self.move_number], self.move_number);
+                moves.push(format!("{}{}", self.coordinate_to_move(x, y, side_x, y+forward), 'e'));
+            }
             if self.board[self.move_number][(y+forward) as usize][side_x as usize] == '.'{continue;}
             if self.my_color((y+forward) as usize, side_x as usize) {continue;}
             if (self.white_move && y == 1) || (!self.white_move && y == 6){
@@ -264,6 +272,7 @@ impl ChessBoard{
         self.board.pop(); // unefficient
         self.long_castle.pop();
         self.short_castle.pop();
+        self.en_passant.pop();
     }
 
     // borde ha en safe och unsafe av dessa
@@ -288,18 +297,31 @@ impl ChessBoard{
         if let Some(last_short_castle) = self.short_castle.last().cloned(){
             self.short_castle.push(last_short_castle);
         }
+
+        
+        if (self.board[self.move_number][y as usize][x as usize] == 'p' || self.board[self.move_number][y as usize][x as usize] == 'P') && (y-new_y).abs() == 2{
+            self.en_passant.push(x);  
+        }else{
+            self.en_passant.push(-2);
+        }
+        
         self.move_number += 1;
 
         self.board[self.move_number][new_y as usize][new_x as usize] = self.board[self.move_number][y as usize][x as usize];  
         self.board[self.move_number][y as usize][x as usize] = '.' as char;
 
+
         if played_move.len() == 5{
             if let Some(char_at_index) = played_move.chars().nth(4) {
-                self.board[self.move_number][new_y as usize][new_x as usize] = char_at_index;
+                if char_at_index == 'e'{
+                    self.board[self.move_number][y as usize][new_x as usize] = '.' as char;
+                }else{
+                    self.board[self.move_number][new_y as usize][new_x as usize] = char_at_index;
+                    if self.white_move{
+                        self.board[self.move_number][new_y as usize][new_x as usize] = ((self.board[self.move_number][new_y as usize][new_x as usize] as u8)+32) as char
+                    }
+                }
             } 
-            if self.white_move{
-                self.board[self.move_number][new_y as usize][new_x as usize] = ((self.board[self.move_number][new_y as usize][new_x as usize] as u8)+32) as char
-            }
         }
 
         
