@@ -100,7 +100,8 @@ impl ChessBoard{
         let all_moves: Vec<String> = self.get_all_moves();
         let mut moves: Vec<String> = Vec::new();
 
-        
+        let mut long_castle_possible: bool = false;
+        let mut short_castle_possible: bool = false;
         for played_move in &all_moves{
             self.make_move(played_move.clone());
 
@@ -134,7 +135,10 @@ impl ChessBoard{
                     break;
                 }
             }
-
+            let (x, y, new_x, new_y) = self.move_to_coordinate(&played_move);
+            if (king_x == new_x && king_y == new_y) && ((new_y-y==2 && !short_castle_possible)||(new_y-y==-2 && !long_castle_possible)) {is_possible = false;}
+            if king_x == new_x && king_y == new_y && x == new_x && new_y-y==1 && is_possible {short_castle_possible = true}
+            if king_x == new_x && king_y == new_y && x == new_x && new_y-y==-1 && is_possible {long_castle_possible = true}
             if is_possible{moves.push(played_move.clone());}
 
             self.undo_move();
@@ -297,9 +301,15 @@ impl ChessBoard{
         if let Some(last_short_castle) = self.short_castle.last().cloned(){
             self.short_castle.push(last_short_castle);
         }
+        
+        let mut piece: char = self.board[self.move_number][y as usize][x as usize]; // tror det är detta håll
+        piece = piece.to_lowercase().next().unwrap_or(piece);
+        if piece == 'k'{self.long_castle[self.move_number][self.white_move as usize] = false; self.short_castle[self.move_number][self.white_move as usize] = false;}
+        if piece == 'r' && x == 0{self.long_castle[self.move_number][self.white_move as usize] = false;}
+        if piece == 'r' && x == 7{self.short_castle[self.move_number][self.white_move as usize] = false;}
 
         
-        if (self.board[self.move_number][y as usize][x as usize] == 'p' || self.board[self.move_number][y as usize][x as usize] == 'P') && (y-new_y).abs() == 2{
+        if piece == 'p' && (y-new_y).abs() == 2{
             self.en_passant.push(x);  
         }else{
             self.en_passant.push(-2);

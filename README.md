@@ -1,8 +1,7 @@
 # tbeskow-chess
 
 ## Todo
-1. fix check between castle
-2. gamestate
-3. 3fold rep
-4. 50 move
-6. Tests
+1. gamestate
+2. 3fold rep
+3. 50 move
+4. Tests
