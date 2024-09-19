@@ -9,6 +9,13 @@ pub struct ChessBoard{
     long_castle: Vec<[bool; 2]>, // black, white
     short_castle: Vec<[bool; 2]>,
     en_passant: Vec<i32>,
+    gamestate: Vec<GameState>,
+}
+
+enum GameState{
+    InProgress,
+    Draw, 
+    Checkmate
 }
 
 impl ChessBoard{
@@ -45,7 +52,9 @@ impl ChessBoard{
             long_castle: vec![[true, true]], // black, white
             short_castle: vec![[true, true]],
             en_passant: vec![-2],
+            gamestate: vec![GameState::InProgress],
         }
+        
     }
 
 
@@ -65,8 +74,50 @@ impl ChessBoard{
             println!();
         }
     }
-    
-    
+
+    fn find_king(&self) -> (i32, i32){
+        for r in 0..self.board_size{
+            for c in 0..self.board_size{
+                if self.board[self.move_number][r][c] == '.' {continue;}
+                if self.my_color(r, c) {continue;}
+                let mut piece: char = self.board[self.move_number][r][c];
+                piece = piece.to_lowercase().next().unwrap_or(piece);
+                
+                if piece == 'k' {
+                    return (c as i32, r as i32);   
+                }
+            }
+        }
+        return (-1, -1);
+    }
+
+    fn is_check(&mut self, opponent: bool) -> bool{
+        let (king_x, king_y) = self.find_king();
+        if !opponent{self.make_move(self.coordinate_to_move(king_x, king_y, king_x, king_y));}
+        let opp_moves: Vec<String> = self.get_all_moves();
+        for opp_move in opp_moves{
+            let (x, y, new_x, new_y) = self.move_to_coordinate(&opp_move);
+            if new_x == king_x && new_y == king_y{
+                let mut piece: char = self.board[self.move_number][y as usize][x as usize]; // tror det är detta håll
+                piece = piece.to_lowercase().next().unwrap_or(piece);
+                if piece == 'p' && new_x == x {continue;}
+                if !opponent{self.undo_move();}
+                return true;
+            }
+        }
+        if !opponent{self.undo_move();}
+        return false;
+    }
+
+    fn current_gamestate(&mut self) -> GameState{
+        let moves: Vec<String> = self.get_moves();
+        if moves.len()>0 {
+            if self.is_check(false){return GameState::Checkmate}
+            else {return GameState::Draw}
+        }else{
+            return GameState::InProgress;
+        }
+    }
 
     fn my_color(&self, r:usize, c:usize) -> bool{
         return (self.white_move ^ (self.board[self.move_number][r][c]>='a')) == true;
@@ -105,36 +156,8 @@ impl ChessBoard{
         for played_move in &all_moves{
             self.make_move(played_move.clone());
 
-            let mut king_x: i32 = 0;
-            let mut king_y: i32 = 0;
-
-            for r in 0..self.board_size{
-                for c in 0..self.board_size{
-                    if self.board[self.move_number][r][c] == '.' {continue;}
-                    if self.my_color(r, c) {continue;}
-                    let mut piece: char = self.board[self.move_number][r][c];
-                    piece = piece.to_lowercase().next().unwrap_or(piece);
-                    
-                    if piece == 'k' {
-                        king_x = c as i32;
-                        king_y = r as i32;   
-                    }
-                }
-            }
-            // println!("{} {}", king_y, king_x);
-
-            let mut is_possible: bool = true;
-            let opp_moves: Vec<String> = self.get_all_moves();
-            for opp_move in opp_moves{
-                let (x, y, new_x, new_y) = self.move_to_coordinate(&opp_move);
-                if new_x == king_x && new_y == king_y{
-                    let mut piece: char = self.board[self.move_number][y as usize][x as usize]; // tror det är detta håll
-                    piece = piece.to_lowercase().next().unwrap_or(piece);
-                    if piece == 'p' && new_x == x {continue;}
-                    is_possible = false;
-                    break;
-                }
-            }
+            let (king_x, king_y) = self.find_king();
+            let mut is_possible: bool = self.is_check(true);
             let (x, y, new_x, new_y) = self.move_to_coordinate(&played_move);
             if (king_x == new_x && king_y == new_y) && ((new_y-y==2 && !short_castle_possible)||(new_y-y==-2 && !long_castle_possible)) {is_possible = false;}
             if king_x == new_x && king_y == new_y && x == new_x && new_y-y==1 && is_possible {short_castle_possible = true}
@@ -277,18 +300,10 @@ impl ChessBoard{
         self.long_castle.pop();
         self.short_castle.pop();
         self.en_passant.pop();
+        self.gamestate.pop();
     }
 
-    // borde ha en safe och unsafe av dessa
-    pub fn make_move(&mut self, played_move: String){
-
-
-        // make more efficent (cache)
-        // let moves: Vec<String> = self.get_moves();
-        // if !moves.contains(&played_move){
-        //     panic!("Error: Move was not playable");
-        // }
-
+    pub fn unsafe_make_move(&mut self, played_move: String){
         let (x, y, new_x, new_y) = self.move_to_coordinate(&played_move);
 
         // unefficient
@@ -301,6 +316,8 @@ impl ChessBoard{
         if let Some(last_short_castle) = self.short_castle.last().cloned(){
             self.short_castle.push(last_short_castle);
         }
+        let current_gamestate = self.current_gamestate();
+        self.gamestate.push(current_gamestate);
         
         let mut piece: char = self.board[self.move_number][y as usize][x as usize]; // tror det är detta håll
         piece = piece.to_lowercase().next().unwrap_or(piece);
@@ -336,6 +353,16 @@ impl ChessBoard{
 
         
         self.white_move = !self.white_move;
+    }
+
+    // borde ha en safe och unsafe av dessa
+    pub fn make_move(&mut self, played_move: String){
+        // make more efficent (cache)
+        let moves: Vec<String> = self.get_moves();
+        if !moves.contains(&played_move){
+            panic!("Error: Move was not playable");
+        }
+        self.unsafe_make_move(played_move);
     }
 
 

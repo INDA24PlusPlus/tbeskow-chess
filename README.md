@@ -1,7 +1,6 @@
 # tbeskow-chess
 
 ## Todo
-1. gamestate
-2. 3fold rep
-3. 50 move
-4. Tests
+1. 3fold rep
+2. 50 move
+3. Tests
