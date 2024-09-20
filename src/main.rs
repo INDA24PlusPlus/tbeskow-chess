@@ -1,11 +1,12 @@
 mod lib;
 use {lib::ChessBoard, std::io::{self, prelude::*}};
-
+// Ggez
 fn main() {
     let mut board = ChessBoard::new();
     loop{
         board.print_board();
         let moves = board.get_moves();
+        println!("{}", moves.len());
         for mo in moves{
             println!("{}", mo);
         }
