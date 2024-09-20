@@ -1,11 +1,11 @@
 pub struct ChessBoard{
     board_size: usize,
 
-    white_move: bool,
+    pub white_move: bool,
     move_number: usize,
 
     // make rollbackable if undo
-    board: Vec<[[char; 8];8]>,
+    pub board: Vec<[[char; 8];8]>,
     long_castle: Vec<[bool; 2]>, // black, white
     short_castle: Vec<[bool; 2]>,
     en_passant: Vec<i32>,
