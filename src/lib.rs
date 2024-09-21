@@ -1,10 +1,12 @@
+use std::collections::HashMap;
+
 pub struct ChessBoard{
     board_size: usize,
 
     pub white_move: bool,
     move_number: usize,
-
-    // make rollbackable if undo
+    past_states: HashMap<String, i32>,
+    
     pub board: Vec<[[char; 8];8]>,
     long_castle: Vec<[bool; 2]>, // black, white
     short_castle: Vec<[bool; 2]>,
@@ -23,31 +25,22 @@ impl ChessBoard{
 
     pub fn new() ->Self{
         let initial_board: [[char; 8]; 8] = [
-            ['.', '.', '.', '.', '.', '.', '.', '.'],
-            ['.', '.', 'P', '.', '.', '.', '.', '.'],
-            ['.', '.', '.', '.', '.', 'k', '.', '.'],
-            ['.', '.', '.', '.', '.', '.', '.', '.'],
+            ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'],
+            ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'],
             ['.', '.', '.', '.', '.', '.', '.', '.'],
             ['.', '.', '.', '.', '.', '.', '.', '.'],
-            ['.', '.', '.', '.', '.', 'K', '.', '.'],
             ['.', '.', '.', '.', '.', '.', '.', '.'],
+            ['.', '.', '.', '.', '.', '.', '.', '.'],
+            ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'],
+            ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'],
         ];
-        // let initial_board: [[char; 8]; 8] = [
-        //     ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'],
-        //     ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'],
-        //     ['.', '.', '.', '.', '.', '.', '.', '.'],
-        //     ['.', '.', '.', '.', '.', '.', '.', '.'],
-        //     ['.', '.', '.', '.', '.', '.', '.', '.'],
-        //     ['.', '.', '.', '.', '.', '.', '.', '.'],
-        //     ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'],
-        //     ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'],
-        // ];
 
         ChessBoard{
             board_size: 8, // does not work over 9 (because of move representation)
 
             white_move: true,
             move_number: 0,
+            past_states: HashMap::new(),
 
             board: vec![initial_board],
             long_castle: vec![[true, true]], // black, white
@@ -73,6 +66,16 @@ impl ChessBoard{
             }
             println!();
         }
+    }
+
+    fn gamestate_to_string(&self) -> String{
+        let mut res: String = format!("{} {} {} {} {} ",  self.white_move, self.long_castle[self.move_number][0], self.long_castle[self.move_number][1], self.short_castle[self.move_number][0], self.short_castle[self.move_number][1]);
+        for row in &self.board[self.move_number]{
+            for &piece in row{
+                res.push_str(&piece.to_string());
+            }
+        }
+        return res;
     }
 
     fn find_king(&self) -> (i32, i32){
@@ -112,7 +115,7 @@ impl ChessBoard{
 
     pub fn current_gamestate(&mut self) -> GameState{
         let moves: Vec<String> = self.get_moves();
-        if self.moverule_50[self.move_number]>=50 {return GameState::Draw;}
+        if self.moverule_50[self.move_number]>=50 || self.past_states.get(&self.gamestate_to_string()).unwrap_or(&0) >= &3 {return GameState::Draw;}
         if moves.len()==0 {
             if self.is_check(false){return GameState::Checkmate}
             else {return GameState::Draw}
@@ -287,6 +290,8 @@ impl ChessBoard{
         if self.move_number == 0{
             panic!("Error: Tried to undo move 0");
         }
+        let count = self.past_states.entry(self.gamestate_to_string()).or_insert(0);
+        *count -= 1;
         self.white_move = !self.white_move;
         self.move_number -= 1;
 
@@ -299,7 +304,6 @@ impl ChessBoard{
     pub fn unsafe_make_move(&mut self, played_move: String){
         let (x, y, new_x, new_y) = self.move_to_coordinate(&played_move);
 
-        // unefficient
         if let Some(last_board) = self.board.last().cloned(){
             self.board.push(last_board);
         }
@@ -311,7 +315,7 @@ impl ChessBoard{
         }
         
         self.move_number += 1;
-        let mut piece: char = self.board[self.move_number][y as usize][x as usize]; // tror det är detta håll
+        let mut piece: char = self.board[self.move_number][y as usize][x as usize]; 
         piece = piece.to_lowercase().next().unwrap_or(piece);
         if piece == 'k'{self.long_castle[self.move_number][self.white_move as usize] = false; self.short_castle[self.move_number][self.white_move as usize] = false;}
         if piece == 'r' && x == 0{self.long_castle[self.move_number][self.white_move as usize] = false;}
@@ -342,6 +346,8 @@ impl ChessBoard{
             } 
         } 
         self.white_move = !self.white_move;
+        let count = self.past_states.entry(self.gamestate_to_string()).or_insert(0);
+        *count += 1;
     }
 
     pub fn make_move(&mut self, played_move: String){
