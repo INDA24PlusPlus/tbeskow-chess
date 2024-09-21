@@ -329,7 +329,7 @@ impl ChessBoard{
                 }else{
                     self.board[self.move_number][new_y as usize][new_x as usize] = char_at_index;
                     if self.white_move{
-                        self.board[self.move_number][new_y as usize][new_x as usize] = ((self.board[self.move_number][new_y as usize][new_x as usize] as u8)+32) as char
+                        self.board[self.move_number][new_y as usize][new_x as usize] = ((self.board[self.move_number][new_y as usize][new_x as usize] as u8)-32) as char
                     }
                 }
             } 
