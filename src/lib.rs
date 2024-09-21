@@ -22,15 +22,25 @@ impl ChessBoard{
 
     pub fn new() ->Self{
         let initial_board: [[char; 8]; 8] = [
-            ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'],
-            ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'],
+            ['.', '.', '.', '.', '.', '.', '.', '.'],
+            ['.', '.', 'P', '.', '.', '.', '.', '.'],
+            ['.', '.', '.', '.', '.', 'k', '.', '.'],
             ['.', '.', '.', '.', '.', '.', '.', '.'],
             ['.', '.', '.', '.', '.', '.', '.', '.'],
             ['.', '.', '.', '.', '.', '.', '.', '.'],
+            ['.', '.', '.', '.', '.', 'K', '.', '.'],
             ['.', '.', '.', '.', '.', '.', '.', '.'],
-            ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'],
-            ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'],
         ];
+        // let initial_board: [[char; 8]; 8] = [
+        //     ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'],
+        //     ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'],
+        //     ['.', '.', '.', '.', '.', '.', '.', '.'],
+        //     ['.', '.', '.', '.', '.', '.', '.', '.'],
+        //     ['.', '.', '.', '.', '.', '.', '.', '.'],
+        //     ['.', '.', '.', '.', '.', '.', '.', '.'],
+        //     ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'],
+        //     ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'],
+        // ];
 
         ChessBoard{
             board_size: 8, // does not work over 9 (because of move representation)
@@ -326,7 +336,7 @@ impl ChessBoard{
                 }else{
                     self.board[self.move_number][new_y as usize][new_x as usize] = char_at_index;
                     if self.white_move{
-                        self.board[self.move_number][new_y as usize][new_x as usize] = ((self.board[self.move_number][new_y as usize][new_x as usize] as u8)+32) as char
+                        self.board[self.move_number][new_y as usize][new_x as usize] = ((self.board[self.move_number][new_y as usize][new_x as usize] as u8)-32) as char
                     }
                 }
             } 
