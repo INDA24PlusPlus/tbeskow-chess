@@ -1,11 +1,9 @@
 # tbeskow-chess
 
 ## Todo
-1. 3fold rep
-2. 50 move
-3. Tests
+1. Tests
 
-
+## Example use
 
 ```rs
 mod lib;
