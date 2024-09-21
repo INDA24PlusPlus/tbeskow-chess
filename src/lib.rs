@@ -9,6 +9,7 @@ pub struct ChessBoard{
     long_castle: Vec<[bool; 2]>, // black, white
     short_castle: Vec<[bool; 2]>,
     en_passant: Vec<i32>,
+    moverule_50: Vec<i32>,
 }
 
 #[derive(PartialEq)]
@@ -52,10 +53,10 @@ impl ChessBoard{
             long_castle: vec![[true, true]], // black, white
             short_castle: vec![[true, true]],
             en_passant: vec![-2],
+            moverule_50: vec![0],
         }
         
     }
-
 
     pub fn print_board(&self) {
         print!("   ");
@@ -111,7 +112,7 @@ impl ChessBoard{
 
     pub fn current_gamestate(&mut self) -> GameState{
         let moves: Vec<String> = self.get_moves();
-        println!("gs len: {}", moves.len());
+        if self.moverule_50[self.move_number]>=50 {return GameState::Draw;}
         if moves.len()==0 {
             if self.is_check(false){return GameState::Checkmate}
             else {return GameState::Draw}
@@ -200,7 +201,6 @@ impl ChessBoard{
                 moves.push(self.coordinate_to_move(x, y, new_x, new_y));
             }
         }
-
         return moves
     }
 
@@ -316,18 +316,18 @@ impl ChessBoard{
         if piece == 'k'{self.long_castle[self.move_number][self.white_move as usize] = false; self.short_castle[self.move_number][self.white_move as usize] = false;}
         if piece == 'r' && x == 0{self.long_castle[self.move_number][self.white_move as usize] = false;}
         if piece == 'r' && x == 7{self.short_castle[self.move_number][self.white_move as usize] = false;}
-
-        
+      
         if piece == 'p' && (y-new_y).abs() == 2{
             self.en_passant.push(x);  
         }else{
             self.en_passant.push(-2);
         }
-        
 
+        if piece == 'p' || self.board[self.move_number][new_y as usize][new_x as usize] != '.' {self.moverule_50.push(0);}
+        else {self.moverule_50.push(self.moverule_50[self.move_number]);}
+        
         self.board[self.move_number][new_y as usize][new_x as usize] = self.board[self.move_number][y as usize][x as usize];  
         self.board[self.move_number][y as usize][x as usize] = '.' as char;
-
 
         if played_move.len() == 5{
             if let Some(char_at_index) = played_move.chars().nth(4) {
@@ -340,9 +340,7 @@ impl ChessBoard{
                     }
                 }
             } 
-        }
-
-        
+        } 
         self.white_move = !self.white_move;
     }
 
