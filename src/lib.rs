@@ -239,7 +239,7 @@ impl ChessBoard{
             }
         }
         if self.long_castle[self.move_number][self.white_move as usize]{
-            if self.board[self.move_number][y as usize][(x-1) as usize] == '.' && self.board[self.move_number][y as usize][(x-2) as usize] == '.'{
+            if self.board[self.move_number][y as usize][(x-1) as usize] == '.' && self.board[self.move_number][y as usize][(x-2) as usize] == '.'&& self.board[self.move_number][y as usize][(x-3) as usize] == '.'{
                 moves.push(self.coordinate_to_move(x, y, x-2, y));
             }
         }
@@ -332,6 +332,9 @@ impl ChessBoard{
         
         self.board[self.move_number][new_y as usize][new_x as usize] = self.board[self.move_number][y as usize][x as usize];  
         self.board[self.move_number][y as usize][x as usize] = '.' as char;
+
+        if piece == 'k' && new_x-x == 2{self.board[self.move_number][y as usize][(new_x-1) as usize]=self.board[self.move_number][y as usize][7];self.board[self.move_number][y as usize][7]='.'; }
+        if piece == 'k' && new_x-x == -2{self.board[self.move_number][y as usize][(new_x+1) as usize]=self.board[self.move_number][y as usize][0];self.board[self.move_number][y as usize][0]='.'; }
 
         if played_move.len() == 5{
             if let Some(char_at_index) = played_move.chars().nth(4) {
